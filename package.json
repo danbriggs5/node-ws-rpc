@@ -1,6 +1,6 @@
 {
-  "name": "node-zmq-rpc",
-  "version": "1.1.2",
+  "name": "node-ws-rpc",
+  "version": "1.0.0",
   "description": "",
   "main": "src/index.js",
   "directories": {
