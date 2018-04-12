@@ -1,5 +1,5 @@
 const { test } = require('tape');
-const { Client, Server } = require('../src');
+const { Client, Server } = require('../');
 
 
 let curPort = 3000;
