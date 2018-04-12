@@ -47,26 +47,26 @@ client.close();
 
 ## Client
 ### wsRpc.Client(address, socketOptions, rpcOptions)
-address and socketOptions will be passed directly to the (ws)[https://github.com/websockets/ws] module when creating the socket.  
-rpcOptions:
-- `connectionTimeout`: how long we should wait before closing the socket if the server is not responding to heartbeats.
+`address` and `socketOptions` will be passed directly to the [ws](https://github.com/websockets/ws) module when creating the socket.  
+`rpcOptions`:
+- `connectionTimeout`: how long to wait before closing the socket if the server is not responding to heartbeats.
 - `heartbeatPeriod`: how often to ping the server.
 
 ### client.call(methodName, body)
-Send a message to the server.
+Send a message to the server. Returns a promise.
 
 ### client.on(eventName, callback)
-Subscribe to an event. Possible event names are `['close', 'error']`.
+Subscribe to an event. Valid event names: `['close', 'error']`.
 
 ### client.close()
 Close the socket. Will fire the `close` event if it hasn't already fired.
 
 ## Server
 ### wsRpc.Server(socketOptions, methods, rpcOptions)
-socketOptions will be passed directly to the (ws)[https://github.com/websockets/ws] module when creating the socket.  
-methods is a dictionary containing all the callable functions. A client will receive a `404` status if they call a function that we haven't defined.  
-rpcOptions:
-- `connectionTimeout`: how long we should wait before closing the socket if the client is not responding to heartbeats.
+`socketOptions` will be passed directly to the [ws](https://github.com/websockets/ws) module when creating the socket.  
+`methods` is a dictionary containing all the callable functions. A client will get a `404` if they call a function that is not defined here.
+`rpcOptions`:
+- `connectionTimeout`: how long to wait before closing the socket if the client is not responding to heartbeats.
 - `heartbeatPeriod`: how often to ping the client.
 
 ### server.close()
