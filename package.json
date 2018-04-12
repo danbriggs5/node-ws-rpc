@@ -1,11 +1,9 @@
 {
   "name": "node-ws-rpc",
   "version": "1.0.0",
-  "description": "",
-  "main": "src/index.js",
-  "directories": {
-    "test": "test"
-  },
+  "description": "Rpc client built on persistent ws connections",
+  "main": "index.js",
+  "repository": "github:danbriggs5/node-ws-rpc",
   "scripts": {
     "test": "node_modules/.bin/tape test/**/*.spec.js | node_modules/.bin/tap-spec",
     "eslint": "node node_modules/eslint/bin/eslint.js --ignore-path .eslintignore -c .eslintrc.js ./",
