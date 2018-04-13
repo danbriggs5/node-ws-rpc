@@ -3,7 +3,7 @@ const { Client, Server } = require('../');
 
 
 let curPort = 3000;
-function getPort() {
+function getUniquePort() {
 	curPort += 1;
 	return curPort;
 }
@@ -13,7 +13,7 @@ const timeout = delay => new Promise(r => setTimeout(r, delay));
 
 test('Rpc', (t1) => {
 	t1.test('client call', (t) => {
-		const port = getPort();
+		const port = getUniquePort();
 
 		const server = Server({ port }, {
 			createUser(req) {
@@ -31,7 +31,7 @@ test('Rpc', (t1) => {
 	});
 
 	t1.test('server response', (t) => {
-		const port = getPort();
+		const port = getUniquePort();
 
 		const server = Server({ port }, {
 			createUser(req) {
@@ -50,7 +50,7 @@ test('Rpc', (t1) => {
 	});
 
 	t1.test('server error response', (t) => {
-		const port = getPort();
+		const port = getUniquePort();
 
 		const server = Server({ port }, {
 			createUser(req) {
@@ -68,8 +68,8 @@ test('Rpc', (t1) => {
 			});
 	});
 
-	t1.test('server no response', (t) => {
-		const port = getPort();
+	t1.test('server no response', async (t) => {
+		const port = getUniquePort();
 
 		const server = Server({ port }, {
 			createUser() {
@@ -78,16 +78,21 @@ test('Rpc', (t1) => {
 		});
 
 		const client = Client(`ws://localhost:${port}`);
+		let errCode;
 		client.call('createUser', { name: 'Dan' }, { timeout: 1 })
 			.catch(({ statusCode }) => {
-				t.equal(statusCode, 0, 'request times out with status === 0');
-				t.end();
-				server.close();
+				errCode = statusCode;
 			});
+
+		await timeout(100);
+
+		t.equal(errCode, 0, 'request times out with status === 0');
+		t.end();
+		server.close();
 	});
 
 	t1.test('multiple clients', async (t) => {
-		const port = getPort();
+		const port = getUniquePort();
 
 		let msgCount = 0;
 		const server = Server({ port }, {
@@ -113,7 +118,7 @@ test('Rpc', (t1) => {
 	});
 
 	t1.test('on server close', async (t) => {
-		const port = getPort();
+		const port = getUniquePort();
 		const server = Server({ port }, {});
 		const client = Client(`ws://localhost:${port}`);
 
@@ -130,7 +135,7 @@ test('Rpc', (t1) => {
 	});
 
 	t1.test('on client close', async (t) => {
-		const port = getPort();
+		const port = getUniquePort();
 		const server = Server({ port }, {});
 		const client = Client(`ws://localhost:${port}`);
 
@@ -148,7 +153,7 @@ test('Rpc', (t1) => {
 	});
 
 	t1.test('server not active', async (t) => {
-		const port = getPort();
+		const port = getUniquePort();
 		const client = Client(`ws://localhost:${port}`, {}, { connectionTimeout: 1 });
 
 		let hasClosed = false;
@@ -162,7 +167,7 @@ test('Rpc', (t1) => {
 	});
 
 	t1.test('server not sending heartbeats', async (t) => {
-		const port = getPort();
+		const port = getUniquePort();
 		const server = Server({ port }, {});
 		const client = Client(
 			`ws://localhost:${port}`,
@@ -181,9 +186,8 @@ test('Rpc', (t1) => {
 		server.close();
 	});
 
-
 	t1.test('client not sending heartbeats', async (t) => {
-		const port = getPort();
+		const port = getUniquePort();
 		const server = Server({ port }, {}, { connectionTimeout: 1, heartbeatPeriod: 100 });
 		const client = Client(`ws://localhost:${port}`, {});
 
@@ -196,5 +200,36 @@ test('Rpc', (t1) => {
 		t.ok(hasClosed, 'client closes');
 		t.end();
 		server.close();
+	});
+
+	t1.test('client with no server', async (t) => {
+		const port = getUniquePort();
+		const client = Client(`ws://localhost:${port}`, {}, { connectionTimeout: 30000 });
+
+		let hasClosed = false;
+		client.on('close', () => {
+			hasClosed = true;
+		});
+
+		await timeout(100);
+		t.ok(hasClosed, 'client closes immediately and doesn\'t wait for connection timeout');
+		t.end();
+	});
+
+	t1.test('connection closes while client is making a call', async (t) => {
+		const port = getUniquePort();
+
+		// There is no server so the socket will close on next tick
+		const client = Client(`ws://localhost:${port}`, {}, { connectionTimeout: 30000 });
+
+		let errCode;
+		client.call('createUser', {}, { timeout: 5000 })
+			.catch(({ statusCode }) => {
+				errCode = statusCode;
+			});
+
+		await timeout(100);
+		t.equal(errCode, 0, 'call throws "timeout" error immediately on socket close.');
+		t.end();
 	});
 });
