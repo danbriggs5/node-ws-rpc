@@ -1,6 +1,6 @@
 {
   "name": "node-ws-rpc",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Rpc client built on persistent ws connections",
   "main": "index.js",
   "repository": "github:danbriggs5/node-ws-rpc",
