@@ -26,9 +26,11 @@ test('Rpc', (t1) => {
 		const client = Client(`ws://localhost:${port}`);
 		client.call('createUser', { name: 'Dan' })
 			.then(() => {
+				client.close();
 				server.close();
 			});
 	});
+
 
 	t1.test('server response', (t) => {
 		const port = getUniquePort();
@@ -49,6 +51,7 @@ test('Rpc', (t1) => {
 			});
 	});
 
+
 	t1.test('server error response', (t) => {
 		const port = getUniquePort();
 
@@ -64,9 +67,11 @@ test('Rpc', (t1) => {
 				t.equal(statusCode, 500, 'client gets status in error response');
 				t.deepEqual(body, { reason: 'server' }, 'client gets body in error response');
 				t.end();
+				client.close();
 				server.close();
 			});
 	});
+
 
 	t1.test('server no response', async (t) => {
 		const port = getUniquePort();
@@ -88,8 +93,10 @@ test('Rpc', (t1) => {
 
 		t.equal(errCode, 0, 'request times out with status === 0');
 		t.end();
+		client.close();
 		server.close();
 	});
+
 
 	t1.test('multiple clients', async (t) => {
 		const port = getUniquePort();
@@ -114,25 +121,11 @@ test('Rpc', (t1) => {
 
 		t.equal(msgCount, 4, 'servers receives messages from each');
 		t.end();
+		client.close();
+		client2.close();
 		server.close();
 	});
 
-	t1.test('on server close', async (t) => {
-		const port = getUniquePort();
-		const server = Server({ port }, {});
-		const client = Client(`ws://localhost:${port}`);
-
-		let hasClosed = false;
-		client.on('close', () => {
-			hasClosed = true;
-		});
-
-		await timeout(100);
-		server.close();
-		await timeout(100);
-		t.ok(hasClosed, 'client fires closed event');
-		t.end();
-	});
 
 	t1.test('on client close', async (t) => {
 		const port = getUniquePort();
@@ -152,9 +145,29 @@ test('Rpc', (t1) => {
 		server.close();
 	});
 
-	t1.test('server not active', async (t) => {
+
+	t1.test('on server close', async (t) => {
 		const port = getUniquePort();
-		const client = Client(`ws://localhost:${port}`, {}, { connectionTimeout: 1 });
+		const server = Server({ port }, {});
+		const client = Client(`ws://localhost:${port}`, {}, { connectionTimeout: 1000 });
+
+		let hasClosed = false;
+		client.on('close', () => {
+			hasClosed = true;
+		});
+
+		server.close();
+		await timeout(500);
+
+		t.notOk(hasClosed, 'client keeps trying to connect');
+		t.end();
+		client.close();
+	});
+
+
+	t1.test('server not open', async (t) => {
+		const port = getUniquePort();
+		const client = Client(`ws://localhost:${port}`, {}, { connectionTimeout: 1000 });
 
 		let hasClosed = false;
 		client.on('close', () => {
@@ -162,9 +175,107 @@ test('Rpc', (t1) => {
 		});
 
 		await timeout(500);
-		t.ok(hasClosed, 'client closes');
+
+		t.notOk(hasClosed, 'client tries to connect for awhile');
 		t.end();
 	});
+
+
+	t1.test('server not open', async (t) => {
+		const port = getUniquePort();
+		const client = Client(`ws://localhost:${port}`, {}, { connectionTimeout: 10 });
+
+		let hasClosed = false;
+		client.on('close', () => {
+			hasClosed = true;
+		});
+
+		await timeout(500);
+
+		t.ok(hasClosed, 'client eventually closes');
+		t.end();
+	});
+
+
+	t1.test('server not open with infinite reconnect', async (t) => {
+		const port = getUniquePort();
+
+		// Set connectionTimeout = 0 to reconnect indefinitely
+		const client = Client(`ws://localhost:${port}`, {}, { connectionTimeout: 0 });
+
+		let hasClosed = false;
+		client.on('close', () => {
+			hasClosed = true;
+		});
+
+		await timeout(500);
+
+		t.notOk(hasClosed, 'client never closes');
+		t.end();
+		client.close();
+	});
+
+
+	t1.test('client call when server opens late', async (t) => {
+		const port = getUniquePort();
+		const opts = {
+			connectionTimeout: 1000,
+			minReconnectDelay: 10,
+			growthFactor: 1,
+		};
+
+		const client = Client(`ws://localhost:${port}`, {}, opts);
+		client.call('createUser', {});
+
+		await timeout(100);
+
+		let received = false;
+		const server = Server({ port }, {
+			createUser(req) {
+				received = true;
+				req.reply(201);
+			},
+		});
+
+		await timeout(100);
+
+		t.ok(received, 'server still receives the message');
+		t.end();
+		client.close();
+		server.close();
+	});
+
+
+	t1.test('call with retry opts and server opens late', async (t) => {
+		const port = getUniquePort();
+		const msgOpts = {
+			timeout: 100,
+			minReconnectDelay: 100,
+			growthFactor: 1,
+			maxRetries: 5,
+		};
+
+		const client = Client(`ws://localhost:${port}`, {}, { connectionTimeout: 5000 });
+		client.call('createUser', {}, msgOpts);
+
+		await timeout(500);
+
+		let received = false;
+		const server = Server({ port }, {
+			createUser(req) {
+				received = true;
+				req.reply(201);
+			},
+		});
+
+		await timeout(500);
+
+		t.ok(received, 'server receives the message');
+		t.end();
+		client.close();
+		server.close();
+	});
+
 
 	t1.test('server not sending heartbeats', async (t) => {
 		const port = getUniquePort();
@@ -181,10 +292,12 @@ test('Rpc', (t1) => {
 		});
 
 		await timeout(500);
+
 		t.ok(hasClosed, 'client closes');
 		t.end();
 		server.close();
 	});
+
 
 	t1.test('client not sending heartbeats', async (t) => {
 		const port = getUniquePort();
@@ -197,39 +310,9 @@ test('Rpc', (t1) => {
 		});
 
 		await timeout(500);
+
 		t.ok(hasClosed, 'client closes');
 		t.end();
 		server.close();
-	});
-
-	t1.test('client with no server', async (t) => {
-		const port = getUniquePort();
-		const client = Client(`ws://localhost:${port}`, {}, { connectionTimeout: 30000 });
-
-		let hasClosed = false;
-		client.on('close', () => {
-			hasClosed = true;
-		});
-
-		await timeout(100);
-		t.ok(hasClosed, 'client closes immediately and doesn\'t wait for connection timeout');
-		t.end();
-	});
-
-	t1.test('connection closes while client is making a call', async (t) => {
-		const port = getUniquePort();
-
-		// There is no server so the socket will close on next tick
-		const client = Client(`ws://localhost:${port}`, {}, { connectionTimeout: 30000 });
-
-		let errCode;
-		client.call('createUser', {}, { timeout: 5000 })
-			.catch(({ statusCode }) => {
-				errCode = statusCode;
-			});
-
-		await timeout(100);
-		t.equal(errCode, 0, 'call throws "timeout" error immediately on socket close.');
-		t.end();
 	});
 });
