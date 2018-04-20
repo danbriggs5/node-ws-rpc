@@ -52,8 +52,20 @@ client.close();
 - `connectionTimeout`: how long to wait before closing the socket if the server is not responding to heartbeats.
 - `heartbeatPeriod`: how often to ping the server.
 
-### client.call(methodName, body)
+### client.call(methodName, body, options)
 Send a message to the server. Returns a promise.
+`options`:
+- Takes all options from [rxjs-backoff](https://github.com/facetofacebroadcasting/rxjs-backoff).
+- `timeout`: Time to wait before throwing an error on a given attempt. If `maxRetries` is zero (default) then this will be the total time.
+```
+// Default options
+initialDelay: 200,
+maxDelay: 1000,
+maxRetries: 0,
+multiplier: 2,
+retryWhen: () => true,
+timeout: 5000,
+```
 
 ### client.on(eventName, callback)
 Subscribe to an event. Valid event names: `['close', 'error']`.
