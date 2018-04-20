@@ -239,6 +239,37 @@ test('Rpc', (t1) => {
 
 		await timeout(100);
 
+		t.ok(received, 'server still receives the message');
+		t.end();
+		client.close();
+		server.close();
+	});
+
+
+	t1.test('call with retry opts and server opens late', async (t) => {
+		const port = getUniquePort();
+		const msgOpts = {
+			timeout: 100,
+			minReconnectDelay: 100,
+			growthFactor: 1,
+			maxRetries: 5,
+		};
+
+		const client = Client(`ws://localhost:${port}`, {}, { connectionTimeout: 5000 });
+		client.call('createUser', {}, msgOpts);
+
+		await timeout(500);
+
+		let received = false;
+		const server = Server({ port }, {
+			createUser(req) {
+				received = true;
+				req.reply(201);
+			},
+		});
+
+		await timeout(500);
+
 		t.ok(received, 'server receives the message');
 		t.end();
 		client.close();
