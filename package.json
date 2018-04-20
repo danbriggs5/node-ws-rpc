@@ -21,6 +21,8 @@
     "tape": "4.8.0"
   },
   "dependencies": {
+    "rxjs": "5.5.10",
+    "rxjs-backoff": "2.0.2",
     "ws": "5.1.1"
   }
 }
