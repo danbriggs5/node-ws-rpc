@@ -168,6 +168,26 @@ test('Rpc', (t1) => {
 	});
 
 
+	t1.test('on client close with infinite reconnect', async (t) => {
+		const port = getUniquePort();
+		const server = Server({ port }, {});
+		const client = Client(`ws://localhost:${port}`, {}, { connectionTimeout: 0 });
+
+		// Client will still close even with infinite reconnect if we manually close it.
+		let hasClosed = false;
+		client.on('close', () => {
+			hasClosed = true;
+		});
+
+		await timeout(100);
+		client.close();
+		await timeout(100);
+		t.ok(hasClosed, 'client fires closed event');
+		t.end();
+		server.close();
+	});
+
+
 	t1.test('on server close', async (t) => {
 		const port = getUniquePort();
 		const server = Server({ port }, {});
@@ -200,6 +220,7 @@ test('Rpc', (t1) => {
 
 		t.notOk(hasClosed, 'client tries to connect for awhile');
 		t.end();
+		client.close();
 	});
 
 
@@ -221,16 +242,21 @@ test('Rpc', (t1) => {
 
 	t1.test('server not open with infinite reconnect', async (t) => {
 		const port = getUniquePort();
+		const opts = {
+			connectionTimeout: 0,
+			minReconnectDelay: 10,
+		};
 
-		// Set connectionTimeout = 0 to reconnect indefinitely
-		const client = Client(`ws://localhost:${port}`, {}, { connectionTimeout: 0 });
+		// Set connectionTimeout = 0 to reconnect forever
+		const client = Client(`ws://localhost:${port}`, {}, opts);
 
 		let hasClosed = false;
 		client.on('close', () => {
 			hasClosed = true;
 		});
 
-		await timeout(500);
+		// Must wait longer than the default connection timeout
+		await timeout(6000);
 
 		t.notOk(hasClosed, 'client never closes');
 		t.end();
