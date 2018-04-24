@@ -1,6 +1,6 @@
 {
   "name": "node-ws-rpc",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "Rpc client built on persistent ws connections",
   "main": "index.js",
   "repository": "github:danbriggs5/node-ws-rpc",
@@ -21,6 +21,7 @@
     "tape": "4.8.0"
   },
   "dependencies": {
+    "eventemitter3": "3.0.1",
     "rxjs": "5.5.10",
     "rxjs-backoff": "2.0.2",
     "ws": "5.1.1"
